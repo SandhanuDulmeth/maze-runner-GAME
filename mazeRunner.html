@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- Previous head section remains the same -->
 <head>
     <title>3D Maze Runner - Third Person</title>
     <meta charset="UTF-8">
@@ -23,6 +24,7 @@
     <div id="info">Click to start | WASD or Arrow keys to move | Mouse to look around | M for map view</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+        // Previous scene setup remains the same
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -41,18 +43,19 @@
         const mazeSize = 20;
         const maze = Array(mazeSize).fill().map(() => Array(mazeSize).fill(1));
 
+        // Create paths in the maze
         function createMazePaths() {
             for (let i = 0; i < mazeSize; i++) {
                 for (let j = 0; j < mazeSize; j++) {
                     if (i === 0 || i === mazeSize-1 || j === 0 || j === mazeSize-1) {
                         maze[i][j] = 1;
                     } else {
-                        maze[i][j] = Math.random() < 0.25 ? 1 : 0; // Reduced wall density to 25%
+                        maze[i][j] = Math.random() < 0.25 ? 1 : 0;
                     }
                 }
             }
             
-            // Create a larger clear starting area
+            // Clear starting area
             for (let i = 1; i < 4; i++) {
                 for (let j = 1; j < 4; j++) {
                     maze[i][j] = 0;
@@ -66,11 +69,17 @@
         const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
         const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
 
+        // Create wall collision boxes
         for (let i = 0; i < mazeSize; i++) {
             for (let j = 0; j < mazeSize; j++) {
                 if (maze[i][j] === 1) {
                     const wall = new THREE.Mesh(wallGeometry, wallMaterial);
                     wall.position.set(i - mazeSize / 2, 1, j - mazeSize / 2);
+                    // Add collision box
+                    wall.geometry.computeBoundingBox();
+                    wall.boundingBox = wall.geometry.boundingBox.clone();
+                    wall.boundingBox.min.add(wall.position);
+                    wall.boundingBox.max.add(wall.position);
                     scene.add(wall);
                     walls.push(wall);
                 }
@@ -83,14 +92,17 @@
         floor.rotation.x = Math.PI / 2;
         scene.add(floor);
 
+        // Player setup
         const playerBody = new THREE.Group();
-        playerBody.direction = new THREE.Vector3(0, 0, -1);
-
         const bodyGeometry = new THREE.BoxGeometry(0.3, 0.6, 0.2);
         const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
         const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
         body.position.y = 0.3;
         playerBody.add(body);
+
+        // Create player bounding box for collision detection
+        const playerBoundingBox = new THREE.Box3();
+        const playerSize = new THREE.Vector3(0.4, 0.6, 0.4); // Slightly larger than visual model
 
         const legGeometry = new THREE.BoxGeometry(0.1, 0.3, 0.1);
         const legMaterial = new THREE.MeshPhongMaterial({ color: 0x008800 });
@@ -106,6 +118,7 @@
         playerBody.position.set(-mazeSize / 2 + 1.5, 0, -mazeSize / 2 + 1.5);
         scene.add(playerBody);
 
+        // Camera and control setup
         const cameraDistance = 2;
         const cameraHeight = 1.2;
         camera.position.set(0, cameraHeight, cameraDistance);
@@ -119,6 +132,7 @@
         const turnSpeed = 0.003;
         let legAngle = 0;
 
+        // Event listeners remain the same
         document.addEventListener('click', () => {
             if (!isMouseLocked) {
                 renderer.domElement.requestPointerLock();
@@ -145,6 +159,7 @@
             keys[e.key.toLowerCase()] = false;
         });
 
+        // Map camera setup
         const mapCamera = new THREE.OrthographicCamera(
             -mazeSize / 2 - 1,
             mazeSize / 2 + 1,
@@ -156,31 +171,21 @@
         mapCamera.position.set(0, 15, 0);
         mapCamera.lookAt(0, 0, 0);
 
-        function checkCollision(newX, newZ) {
-            const playerRadius = 0.2; // Reduced from 0.3 to make movement easier
-            const checkPoints = [
-                { x: newX, z: newZ }, // Center point
-                { x: newX + playerRadius, z: newZ },
-                { x: newX - playerRadius, z: newZ },
-                { x: newX, z: newZ + playerRadius },
-                { x: newX, z: newZ - playerRadius }
-            ];
+        // Improved collision detection
+        function checkCollision(newPosition) {
+            // Update player bounding box at the new position
+            playerBoundingBox.setFromCenterAndSize(
+                new THREE.Vector3(newPosition.x, 0.3, newPosition.z),
+                playerSize
+            );
 
-            for (const point of checkPoints) {
-                const mazeX = Math.floor(point.x + mazeSize / 2);
-                const mazeZ = Math.floor(point.z + mazeSize / 2);
-
-                // Add a small buffer to prevent getting too close to walls
-                if (
-                    mazeX < 0 || 
-                    mazeX >= mazeSize || 
-                    mazeZ < 0 || 
-                    mazeZ >= mazeSize || 
-                    maze[mazeX][mazeZ] === 1
-                ) {
+            // Check collision with each wall
+            for (const wall of walls) {
+                if (playerBoundingBox.intersectsBox(wall.boundingBox)) {
                     return true;
                 }
             }
+
             return false;
         }
 
@@ -230,6 +235,7 @@
                 if (moved) {
                     moveVector.normalize().multiplyScalar(moveSpeed);
                     
+                    // Animate legs
                     legAngle += 0.2;
                     const legMovement = Math.sin(legAngle) * 0.2;
                     leftLeg.position.z = legMovement;
@@ -238,16 +244,15 @@
                     rightLeg.rotation.x = -legMovement;
                     body.position.y = 0.3 + Math.abs(Math.sin(legAngle * 2)) * 0.05;
 
-                    const newX = playerBody.position.x + moveVector.x;
-                    const newZ = playerBody.position.z + moveVector.z;
+                    // Calculate new position
+                    const newPosition = playerBody.position.clone().add(moveVector);
 
-                    // Try moving on each axis separately
-                    const canMoveX = !checkCollision(newX, playerBody.position.z);
-                    const canMoveZ = !checkCollision(playerBody.position.x, newZ);
-
-                    if (canMoveX) playerBody.position.x = newX;
-                    if (canMoveZ) playerBody.position.z = newZ;
+                    // Check collision at new position
+                    if (!checkCollision(newPosition)) {
+                        playerBody.position.copy(newPosition);
+                    }
                 } else {
+                    // Reset leg positions when not moving
                     legAngle = 0;
                     leftLeg.position.z = 0;
                     rightLeg.position.z = 0;
@@ -256,6 +261,7 @@
                     body.position.y = 0.3;
                 }
 
+                // Update camera
                 const cameraOffset = new THREE.Vector3(
                     0,
                     cameraHeight,
