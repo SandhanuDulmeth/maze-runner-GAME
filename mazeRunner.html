@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>3D Maze Runner with Human Model</title>
+    <title>3D Maze Runner - Third Person</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
@@ -20,19 +20,17 @@
     </style>
 </head>
 <body>
-    <div id="info">WASD or Arrow keys to move | Mouse to look around | M for map view</div>
+    <div id="info">Click to start | WASD or Arrow keys to move | Mouse to look around | M for map view</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/loaders/GLTFLoader.js"></script>
 
     <script>
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Set sky color
-        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+        scene.background = new THREE.Color(0x87CEEB);
 
         // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -42,21 +40,22 @@
         directionalLight.position.set(10, 20, 10);
         scene.add(directionalLight);
 
-        // Maze configuration
+        // Maze configuration with wider paths
         const mazeSize = 10;
         const maze = [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 0, 0, 1, 0, 0, 1],
-            [1, 1, 1, 0, 1, 0, 1, 0, 1, 1],
-            [1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-            [1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-            [1, 1, 1, 1, 1, 0, 0, 0, 0, 1],
-            [1, 0, 0, 0, 1, 0, 1, 1, 0, 1],
-            [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 0, 0, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 1, 1, 1, 1, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 0, 0, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
         ];
 
+        // Create walls
         const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
         const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
         const walls = [];
@@ -79,24 +78,73 @@
         floor.rotation.x = Math.PI / 2;
         scene.add(floor);
 
-        // Player (human model)
-        const player = new THREE.Object3D();
-        const loader = new THREE.GLTFLoader();
-        let humanModel;
+        // Player character
+        const playerBody = new THREE.Group();
+        
+        const bodyGeometry = new THREE.BoxGeometry(0.3, 0.6, 0.2);
+        const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 0.3;
+        playerBody.add(body);
 
-        loader.load('https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb', (gltf) => {
-            humanModel = gltf.scene;
-            humanModel.scale.set(0.5, 0.5, 0.5);
-            humanModel.position.set(-mazeSize / 2 + 1, 0, -mazeSize / 2 + 1);
-            player.add(humanModel);
-            scene.add(player);
+        // Add legs
+        const legGeometry = new THREE.BoxGeometry(0.1, 0.3, 0.1);
+        const legMaterial = new THREE.MeshPhongMaterial({ color: 0x008800 });
+        
+        const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+        leftLeg.position.set(-0.1, 0.15, 0);
+        playerBody.add(leftLeg);
+
+        const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+        rightLeg.position.set(0.1, 0.15, 0);
+        playerBody.add(rightLeg);
+
+        playerBody.position.set(-mazeSize / 2 + 1, 0, -mazeSize / 2 + 1);
+        scene.add(playerBody);
+
+        // Camera setup - closer to player and lower
+        const cameraDistance = 2;
+        const cameraHeight = 1;
+        camera.position.set(0, cameraHeight, cameraDistance);
+
+        // Mouse controls
+        let mouseX = 0;
+        let targetRotation = 0;
+        let isMouseLocked = false;
+
+        // Initialize movement variables
+        const keys = {};
+        let isMapView = false;
+        const moveSpeed = 0.1;
+        const turnSpeed = 0.003;
+        let legAngle = 0;
+
+        // Event listeners
+        document.addEventListener('click', () => {
+            if (!isMouseLocked) {
+                renderer.domElement.requestPointerLock();
+            }
         });
 
-        player.position.set(-mazeSize / 2 + 1, 0, -mazeSize / 2 + 1);
-        scene.add(player);
+        document.addEventListener('pointerlockchange', () => {
+            isMouseLocked = document.pointerLockElement === renderer.domElement;
+        });
 
-        camera.position.set(0, 1.5, 0);
-        player.add(camera);
+        document.addEventListener('mousemove', (e) => {
+            if (isMouseLocked && !isMapView) {
+                mouseX = e.movementX;
+                targetRotation += -e.movementX * turnSpeed;
+            }
+        });
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key.toLowerCase() === 'm') isMapView = !isMapView;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
 
         // Map camera
         const mapCamera = new THREE.OrthographicCamera(
@@ -110,47 +158,23 @@
         mapCamera.position.set(0, 15, 0);
         mapCamera.lookAt(0, 0, 0);
 
-        // Controls
-        const moveSpeed = 0.1;
-        const rotateSpeed = 0.02;
-        let isMapView = false;
-        const keys = {};
-
-        window.addEventListener('keydown', (e) => {
-            keys[e.key.toLowerCase()] = true;
-            if (e.key.toLowerCase() === 'm') isMapView = !isMapView;
-        });
-
-        window.addEventListener('keyup', (e) => {
-            keys[e.key.toLowerCase()] = false;
-        });
-
-        // Pointer lock controls
-        renderer.domElement.addEventListener('click', () => {
-            renderer.domElement.requestPointerLock();
-        });
-
-        document.addEventListener('pointerlockchange', () => {
-            isMouseLocked = document.pointerLockElement === renderer.domElement;
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (document.pointerLockElement === renderer.domElement && !isMapView) {
-                player.rotation.y -= e.movementX * rotateSpeed * 0.01;
-                camera.rotation.x = Math.max(
-                    -Math.PI / 3,
-                    Math.min(Math.PI / 3, camera.rotation.x - e.movementY * rotateSpeed * 0.01)
-                );
-            }
-        });
-
-        // Collision detection
+        // Collision detection with wider buffer
         function checkCollision(x, z) {
-            const mazeX = Math.floor(x + mazeSize / 2);
-            const mazeZ = Math.floor(z + mazeSize / 2);
+            const buffer = 0.3; // Collision buffer
+            const positions = [
+                [x + buffer, z],
+                [x - buffer, z],
+                [x, z + buffer],
+                [x, z - buffer]
+            ];
 
-            if (mazeX < 0 || mazeX >= mazeSize || mazeZ < 0 || mazeZ >= mazeSize) return true;
-            return maze[mazeX][mazeZ] === 1;
+            for (const [checkX, checkZ] of positions) {
+                const mazeX = Math.floor(checkX + mazeSize / 2);
+                const mazeZ = Math.floor(checkZ + mazeSize / 2);
+                if (mazeX < 0 || mazeX >= mazeSize || mazeZ < 0 || mazeZ >= mazeSize) return true;
+                if (maze[mazeX][mazeZ] === 1) return true;
+            }
+            return false;
         }
 
         // Animation loop
@@ -158,19 +182,60 @@
             requestAnimationFrame(animate);
 
             if (!isMapView) {
+                // Smooth rotation
+                playerBody.rotation.y += (targetRotation - playerBody.rotation.y) * 0.1;
+
+                // Movement
+                let moved = false;
                 const moveVector = new THREE.Vector3();
-                if (keys['w'] || keys['arrowup']) moveVector.z -= moveSpeed;
-                if (keys['s'] || keys['arrowdown']) moveVector.z += moveSpeed;
-                if (keys['a'] || keys['arrowleft']) moveVector.x -= moveSpeed;
-                if (keys['d'] || keys['arrowright']) moveVector.x += moveSpeed;
 
-                moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+                if (keys['w'] || keys['arrowup']) {
+                    moveVector.z -= moveSpeed;
+                    moved = true;
+                }
+                if (keys['s'] || keys['arrowdown']) {
+                    moveVector.z += moveSpeed;
+                    moved = true;
+                }
+                if (keys['a'] || keys['arrowleft']) {
+                    moveVector.x -= moveSpeed;
+                    moved = true;
+                }
+                if (keys['d'] || keys['arrowright']) {
+                    moveVector.x += moveSpeed;
+                    moved = true;
+                }
 
-                const newX = player.position.x + moveVector.x;
-                const newZ = player.position.z + moveVector.z;
+                // Walking animation
+                if (moved) {
+                    legAngle += 0.2;
+                    leftLeg.position.z = Math.sin(legAngle) * 0.2;
+                    rightLeg.position.z = Math.sin(legAngle + Math.PI) * 0.2;
+                    playerBody.position.y = Math.abs(Math.sin(legAngle)) * 0.1;
+                } else {
+                    legAngle = 0;
+                    leftLeg.position.z = 0;
+                    rightLeg.position.z = 0;
+                    playerBody.position.y = 0;
+                }
 
-                if (!checkCollision(newX, player.position.z)) player.position.x = newX;
-                if (!checkCollision(player.position.x, newZ)) player.position.z = newZ;
+                // Apply movement relative to rotation
+                moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerBody.rotation.y);
+                const newX = playerBody.position.x + moveVector.x;
+                const newZ = playerBody.position.z + moveVector.z;
+
+                if (!checkCollision(newX, playerBody.position.z)) playerBody.position.x = newX;
+                if (!checkCollision(playerBody.position.x, newZ)) playerBody.position.z = newZ;
+
+                // Update camera position - now directly behind player
+                const cameraOffset = new THREE.Vector3(
+                    0,
+                    cameraHeight,
+                    cameraDistance
+                ).applyAxisAngle(new THREE.Vector3(0, 1, 0), playerBody.rotation.y);
+                
+                camera.position.copy(playerBody.position).add(cameraOffset);
+                camera.lookAt(playerBody.position.clone().add(new THREE.Vector3(0, 0.5, 0)));
 
                 renderer.render(scene, camera);
             } else {
@@ -178,9 +243,9 @@
             }
         }
 
+        // Handle window resize
         window.addEventListener('resize', () => {
-            const aspect = window.innerWidth / window.innerHeight;
-            camera.aspect = aspect;
+            camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
