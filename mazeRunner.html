@@ -38,28 +38,26 @@
         directionalLight.position.set(10, 20, 10);
         scene.add(directionalLight);
 
-        // Increased maze size to 20x20
         const mazeSize = 20;
         const maze = Array(mazeSize).fill().map(() => Array(mazeSize).fill(1));
 
-        // Create paths in the maze (more complex layout)
         function createMazePaths() {
-            // Create outer walls
             for (let i = 0; i < mazeSize; i++) {
                 for (let j = 0; j < mazeSize; j++) {
                     if (i === 0 || i === mazeSize-1 || j === 0 || j === mazeSize-1) {
                         maze[i][j] = 1;
                     } else {
-                        maze[i][j] = Math.random() < 0.3 ? 1 : 0; // 30% chance of wall
+                        maze[i][j] = Math.random() < 0.25 ? 1 : 0; // Reduced wall density to 25%
                     }
                 }
             }
             
-            // Ensure starting area is clear
-            maze[1][1] = 0;
-            maze[1][2] = 0;
-            maze[2][1] = 0;
-            maze[2][2] = 0;
+            // Create a larger clear starting area
+            for (let i = 1; i < 4; i++) {
+                for (let j = 1; j < 4; j++) {
+                    maze[i][j] = 0;
+                }
+            }
         }
 
         createMazePaths();
@@ -105,7 +103,7 @@
         rightLeg.position.set(0.1, 0.15, 0);
         playerBody.add(rightLeg);
 
-        playerBody.position.set(-mazeSize / 2 + 1, 0, -mazeSize / 2 + 1);
+        playerBody.position.set(-mazeSize / 2 + 1.5, 0, -mazeSize / 2 + 1.5);
         scene.add(playerBody);
 
         const cameraDistance = 2;
@@ -158,20 +156,21 @@
         mapCamera.position.set(0, 15, 0);
         mapCamera.lookAt(0, 0, 0);
 
-        // Improved collision detection
         function checkCollision(newX, newZ) {
-            const playerRadius = 0.3; // Player collision radius
+            const playerRadius = 0.2; // Reduced from 0.3 to make movement easier
             const checkPoints = [
-                { x: newX + playerRadius, z: newZ + playerRadius },
-                { x: newX + playerRadius, z: newZ - playerRadius },
-                { x: newX - playerRadius, z: newZ + playerRadius },
-                { x: newX - playerRadius, z: newZ - playerRadius }
+                { x: newX, z: newZ }, // Center point
+                { x: newX + playerRadius, z: newZ },
+                { x: newX - playerRadius, z: newZ },
+                { x: newX, z: newZ + playerRadius },
+                { x: newX, z: newZ - playerRadius }
             ];
 
             for (const point of checkPoints) {
                 const mazeX = Math.floor(point.x + mazeSize / 2);
                 const mazeZ = Math.floor(point.z + mazeSize / 2);
 
+                // Add a small buffer to prevent getting too close to walls
                 if (
                     mazeX < 0 || 
                     mazeX >= mazeSize || 
@@ -212,23 +211,25 @@
                 const moveVector = new THREE.Vector3(0, 0, 0);
 
                 if (keys['w'] || keys['arrowup']) {
-                    moveVector.add(forward.multiplyScalar(moveSpeed));
+                    moveVector.add(forward);
                     moved = true;
                 }
                 if (keys['s'] || keys['arrowdown']) {
-                    moveVector.add(forward.multiplyScalar(-moveSpeed));
+                    moveVector.sub(forward);
                     moved = true;
                 }
                 if (keys['a'] || keys['arrowleft']) {
-                    moveVector.add(right.multiplyScalar(-moveSpeed));
+                    moveVector.sub(right);
                     moved = true;
                 }
                 if (keys['d'] || keys['arrowright']) {
-                    moveVector.add(right.multiplyScalar(moveSpeed));
+                    moveVector.add(right);
                     moved = true;
                 }
 
                 if (moved) {
+                    moveVector.normalize().multiplyScalar(moveSpeed);
+                    
                     legAngle += 0.2;
                     const legMovement = Math.sin(legAngle) * 0.2;
                     leftLeg.position.z = legMovement;
@@ -240,13 +241,12 @@
                     const newX = playerBody.position.x + moveVector.x;
                     const newZ = playerBody.position.z + moveVector.z;
 
-                    // Try moving on each axis separately to allow sliding along walls
-                    if (!checkCollision(newX, playerBody.position.z)) {
-                        playerBody.position.x = newX;
-                    }
-                    if (!checkCollision(playerBody.position.x, newZ)) {
-                        playerBody.position.z = newZ;
-                    }
+                    // Try moving on each axis separately
+                    const canMoveX = !checkCollision(newX, playerBody.position.z);
+                    const canMoveZ = !checkCollision(playerBody.position.x, newZ);
+
+                    if (canMoveX) playerBody.position.x = newX;
+                    if (canMoveZ) playerBody.position.z = newZ;
                 } else {
                     legAngle = 0;
                     leftLeg.position.z = 0;
