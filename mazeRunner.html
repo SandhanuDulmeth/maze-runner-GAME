@@ -38,19 +38,31 @@
         directionalLight.position.set(10, 20, 10);
         scene.add(directionalLight);
 
-        const mazeSize = 10;
-        const maze = [
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 1, 1, 0, 0, 1, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 0, 1, 1, 1, 1, 0, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 1, 1, 0, 0, 1, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-        ];
+        // Increased maze size to 20x20
+        const mazeSize = 20;
+        const maze = Array(mazeSize).fill().map(() => Array(mazeSize).fill(1));
+
+        // Create paths in the maze (more complex layout)
+        function createMazePaths() {
+            // Create outer walls
+            for (let i = 0; i < mazeSize; i++) {
+                for (let j = 0; j < mazeSize; j++) {
+                    if (i === 0 || i === mazeSize-1 || j === 0 || j === mazeSize-1) {
+                        maze[i][j] = 1;
+                    } else {
+                        maze[i][j] = Math.random() < 0.3 ? 1 : 0; // 30% chance of wall
+                    }
+                }
+            }
+            
+            // Ensure starting area is clear
+            maze[1][1] = 0;
+            maze[1][2] = 0;
+            maze[2][1] = 0;
+            maze[2][2] = 0;
+        }
+
+        createMazePaths();
 
         const walls = [];
         const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
@@ -146,19 +158,29 @@
         mapCamera.position.set(0, 15, 0);
         mapCamera.lookAt(0, 0, 0);
 
-        function checkCollision(x, z) {
-            const buffer = 0.3;
-            const mazeX = Math.floor(x + mazeSize / 2);
-            const mazeZ = Math.floor(z + mazeSize / 2);
+        // Improved collision detection
+        function checkCollision(newX, newZ) {
+            const playerRadius = 0.3; // Player collision radius
+            const checkPoints = [
+                { x: newX + playerRadius, z: newZ + playerRadius },
+                { x: newX + playerRadius, z: newZ - playerRadius },
+                { x: newX - playerRadius, z: newZ + playerRadius },
+                { x: newX - playerRadius, z: newZ - playerRadius }
+            ];
 
-            if (
-                mazeX < 0 || 
-                mazeX >= mazeSize || 
-                mazeZ < 0 || 
-                mazeZ >= mazeSize || 
-                maze[mazeX][mazeZ] === 1
-            ) {
-                return true;
+            for (const point of checkPoints) {
+                const mazeX = Math.floor(point.x + mazeSize / 2);
+                const mazeZ = Math.floor(point.z + mazeSize / 2);
+
+                if (
+                    mazeX < 0 || 
+                    mazeX >= mazeSize || 
+                    mazeZ < 0 || 
+                    mazeZ >= mazeSize || 
+                    maze[mazeX][mazeZ] === 1
+                ) {
+                    return true;
+                }
             }
             return false;
         }
@@ -218,8 +240,13 @@
                     const newX = playerBody.position.x + moveVector.x;
                     const newZ = playerBody.position.z + moveVector.z;
 
-                    if (!checkCollision(newX, playerBody.position.z)) playerBody.position.x = newX;
-                    if (!checkCollision(playerBody.position.x, newZ)) playerBody.position.z = newZ;
+                    // Try moving on each axis separately to allow sliding along walls
+                    if (!checkCollision(newX, playerBody.position.z)) {
+                        playerBody.position.x = newX;
+                    }
+                    if (!checkCollision(playerBody.position.x, newZ)) {
+                        playerBody.position.z = newZ;
+                    }
                 } else {
                     legAngle = 0;
                     leftLeg.position.z = 0;
