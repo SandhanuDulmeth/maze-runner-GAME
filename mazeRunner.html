@@ -18,7 +18,7 @@
     </style>
 </head>
 <body>
-    <div id="info">Use WASD or Arrow keys to move</div>
+    <div id="info">WASD or Arrow keys to move | Mouse to look around | M for map view</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         // Initialize Three.js scene
@@ -46,6 +46,7 @@
         // Create maze walls
         const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
         const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
+        const walls = [];
 
         for(let i = 0; i < mazeSize; i++) {
             for(let j = 0; j < mazeSize; j++) {
@@ -53,16 +54,28 @@
                     const wall = new THREE.Mesh(wallGeometry, wallMaterial);
                     wall.position.set(i - mazeSize/2, 1, j - mazeSize/2);
                     scene.add(wall);
+                    walls.push(wall);
                 }
             }
         }
 
         // Create player
-        const playerGeometry = new THREE.SphereGeometry(0.2, 32, 32);
-        const playerMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-        const player = new THREE.Mesh(playerGeometry, playerMaterial);
-        player.position.set(-mazeSize/2 + 1, 0.2, -mazeSize/2 + 1);
+        const player = new THREE.Object3D();
+        player.position.set(-mazeSize/2 + 1, 1, -mazeSize/2 + 1);
         scene.add(player);
+
+        // Add camera to player
+        camera.position.set(0, 0, 0);
+        player.add(camera);
+
+        // Create map camera
+        const mapCamera = new THREE.OrthographicCamera(
+            -mazeSize/2 - 1, mazeSize/2 + 1,
+            mazeSize/2 + 1, -mazeSize/2 - 1,
+            0.1, 1000
+        );
+        mapCamera.position.set(0, 15, 0);
+        mapCamera.lookAt(0, 0, 0);
 
         // Add lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -82,12 +95,16 @@
         floor.rotation.x = Math.PI / 2;
         scene.add(floor);
 
-        // Camera setup
-        camera.position.set(0, 8, 8);
-        camera.lookAt(player.position);
+        // Create player marker for map view
+        const markerGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+        const markerMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+        const playerMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+        scene.add(playerMarker);
 
-        // Movement controls
+        // Movement and view controls
         const moveSpeed = 0.1;
+        const rotateSpeed = 0.02;
+        let isMapView = false;
         const keys = {
             'ArrowUp': false,
             'ArrowDown': false,
@@ -96,18 +113,49 @@
             'w': false,
             's': false,
             'a': false,
-            'd': false
+            'd': false,
+            'm': false
         };
 
+        // Mouse control variables
+        let mouseX = 0;
+        let mouseY = 0;
+        let isMouseLocked = false;
+
+        // Event listeners
         window.addEventListener('keydown', (e) => {
             if (keys.hasOwnProperty(e.key.toLowerCase())) {
                 keys[e.key.toLowerCase()] = true;
+                if (e.key.toLowerCase() === 'm') {
+                    isMapView = !isMapView;
+                }
             }
         });
 
         window.addEventListener('keyup', (e) => {
             if (keys.hasOwnProperty(e.key.toLowerCase())) {
                 keys[e.key.toLowerCase()] = false;
+            }
+        });
+
+        // Pointer lock controls
+        renderer.domElement.addEventListener('click', () => {
+            if (!isMouseLocked) {
+                renderer.domElement.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            isMouseLocked = document.pointerLockElement === renderer.domElement;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isMouseLocked && !isMapView) {
+                player.rotation.y -= e.movementX * rotateSpeed * 0.01;
+                camera.rotation.x = Math.max(
+                    -Math.PI/3,
+                    Math.min(Math.PI/3, camera.rotation.x - e.movementY * rotateSpeed * 0.01)
+                );
             }
         });
 
@@ -127,38 +175,48 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            // Handle movement
-            let newX = player.position.x;
-            let newZ = player.position.z;
+            if (!isMapView) {
+                // Handle movement relative to player's rotation
+                const moveVector = new THREE.Vector3();
+                
+                if (keys.w || keys.ArrowUp) moveVector.z -= moveSpeed;
+                if (keys.s || keys.ArrowDown) moveVector.z += moveSpeed;
+                if (keys.a || keys.ArrowLeft) moveVector.x -= moveSpeed;
+                if (keys.d || keys.ArrowRight) moveVector.x += moveSpeed;
 
-            if((keys.ArrowUp || keys.w) && !checkCollision(newX, newZ - moveSpeed)) {
-                newZ -= moveSpeed;
-            }
-            if((keys.ArrowDown || keys.s) && !checkCollision(newX, newZ + moveSpeed)) {
-                newZ += moveSpeed;
-            }
-            if((keys.ArrowLeft || keys.a) && !checkCollision(newX - moveSpeed, newZ)) {
-                newX -= moveSpeed;
-            }
-            if((keys.ArrowRight || keys.d) && !checkCollision(newX + moveSpeed, newZ)) {
-                newX += moveSpeed;
-            }
+                moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+                
+                const newX = player.position.x + moveVector.x;
+                const newZ = player.position.z + moveVector.z;
 
-            player.position.x = newX;
-            player.position.z = newZ;
+                if (!checkCollision(newX, player.position.z)) player.position.x = newX;
+                if (!checkCollision(player.position.x, newZ)) player.position.z = newZ;
 
-            // Update camera
-            camera.position.x = player.position.x;
-            camera.position.z = player.position.z + 8;
-            camera.lookAt(player.position);
+                // Update player marker position for map view
+                playerMarker.position.set(player.position.x, 0.2, player.position.z);
 
-            renderer.render(scene, camera);
+                renderer.render(scene, camera);
+            } else {
+                renderer.render(scene, mapCamera);
+            }
         }
 
         // Handle window resize
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
+            const aspect = window.innerWidth / window.innerHeight;
+            
+            // Update perspective camera
+            camera.aspect = aspect;
             camera.updateProjectionMatrix();
+            
+            // Update orthographic camera
+            const size = mazeSize / 2;
+            mapCamera.left = -size * aspect;
+            mapCamera.right = size * aspect;
+            mapCamera.top = size;
+            mapCamera.bottom = -size;
+            mapCamera.updateProjectionMatrix();
+            
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
