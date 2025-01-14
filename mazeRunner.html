@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>3D Maze Runner</title>
+    <title>3D Maze Runner with Human Model</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { margin: 0; }
         canvas { display: block; }
@@ -10,9 +12,9 @@
             top: 10px;
             left: 10px;
             color: white;
-            font-family: Arial;
+            font-family: Arial, sans-serif;
             font-size: 16px;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             padding: 10px;
         }
     </style>
@@ -20,7 +22,8 @@
 <body>
     <div id="info">WASD or Arrow keys to move | Mouse to look around | M for map view</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/loaders/GLTFLoader.js"></script>
+
     <script>
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -29,43 +32,7 @@
         document.body.appendChild(renderer.domElement);
 
         // Set sky color
-        scene.background = new THREE.Color(0x87ceeb); // Light blue sky
-
-        // Maze configuration
-        const mazeSize = 10;
-        const maze = [
-            [1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,0,0,1,0,0,1],
-            [1,1,1,0,1,0,1,0,1,1],
-            [1,0,0,0,1,0,0,0,0,1],
-            [1,0,1,1,1,1,1,1,0,1],
-            [1,0,0,0,0,0,0,1,0,1],
-            [1,1,1,1,1,0,0,0,0,1],
-            [1,0,0,0,1,0,1,1,0,1],
-            [1,0,1,0,0,0,0,0,0,1],
-            [1,1,1,1,1,1,1,1,1,1]
-        ];
-
-        // Maze walls
-        const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
-        const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x8b4513 }); // Brown walls
-
-        for (let i = 0; i < mazeSize; i++) {
-            for (let j = 0; j < mazeSize; j++) {
-                if (maze[i][j] === 1) {
-                    const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-                    wall.position.set(i - mazeSize / 2, 1, j - mazeSize / 2);
-                    scene.add(wall);
-                }
-            }
-        }
-
-        // Floor
-        const floorGeometry = new THREE.PlaneGeometry(mazeSize, mazeSize);
-        const floorMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-        floor.rotation.x = -Math.PI / 2;
-        scene.add(floor);
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue
 
         // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -75,64 +42,148 @@
         directionalLight.position.set(10, 20, 10);
         scene.add(directionalLight);
 
+        // Maze configuration
+        const mazeSize = 10;
+        const maze = [
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+            [1, 1, 1, 0, 1, 0, 1, 0, 1, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 1, 1, 1, 1, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 1, 0, 1, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ];
+
+        const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
+        const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
+        const walls = [];
+
+        for (let i = 0; i < mazeSize; i++) {
+            for (let j = 0; j < mazeSize; j++) {
+                if (maze[i][j] === 1) {
+                    const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+                    wall.position.set(i - mazeSize / 2, 1, j - mazeSize / 2);
+                    scene.add(wall);
+                    walls.push(wall);
+                }
+            }
+        }
+
+        // Floor
+        const floorGeometry = new THREE.PlaneGeometry(mazeSize, mazeSize);
+        const floorMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22, side: THREE.DoubleSide });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = Math.PI / 2;
+        scene.add(floor);
+
         // Player (human model)
-        let player;
+        const player = new THREE.Object3D();
         const loader = new THREE.GLTFLoader();
-        loader.load('https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb', function (gltf) {
-            player = gltf.scene;
-            player.scale.set(0.5, 0.5, 0.5);
-            player.position.set(-mazeSize / 2 + 1, 0, -mazeSize / 2 + 1);
+        let humanModel;
+
+        loader.load('https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb', (gltf) => {
+            humanModel = gltf.scene;
+            humanModel.scale.set(0.5, 0.5, 0.5);
+            humanModel.position.set(-mazeSize / 2 + 1, 0, -mazeSize / 2 + 1);
+            player.add(humanModel);
             scene.add(player);
         });
 
-        // Camera positioning
-        camera.position.set(0, 1.5, 3);
+        player.position.set(-mazeSize / 2 + 1, 0, -mazeSize / 2 + 1);
+        scene.add(player);
+
+        camera.position.set(0, 1.5, 0);
+        player.add(camera);
+
+        // Map camera
+        const mapCamera = new THREE.OrthographicCamera(
+            -mazeSize / 2 - 1,
+            mazeSize / 2 + 1,
+            mazeSize / 2 + 1,
+            -mazeSize / 2 - 1,
+            0.1,
+            1000
+        );
+        mapCamera.position.set(0, 15, 0);
+        mapCamera.lookAt(0, 0, 0);
+
+        // Controls
+        const moveSpeed = 0.1;
+        const rotateSpeed = 0.02;
+        let isMapView = false;
+        const keys = {};
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key.toLowerCase() === 'm') isMapView = !isMapView;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        // Pointer lock controls
+        renderer.domElement.addEventListener('click', () => {
+            renderer.domElement.requestPointerLock();
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            isMouseLocked = document.pointerLockElement === renderer.domElement;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (document.pointerLockElement === renderer.domElement && !isMapView) {
+                player.rotation.y -= e.movementX * rotateSpeed * 0.01;
+                camera.rotation.x = Math.max(
+                    -Math.PI / 3,
+                    Math.min(Math.PI / 3, camera.rotation.x - e.movementY * rotateSpeed * 0.01)
+                );
+            }
+        });
 
         // Collision detection
         function checkCollision(x, z) {
             const mazeX = Math.floor(x + mazeSize / 2);
             const mazeZ = Math.floor(z + mazeSize / 2);
-            if (mazeX < 0 || mazeX >= mazeSize || mazeZ < 0 || mazeZ >= mazeSize) {
-                return true;
-            }
+
+            if (mazeX < 0 || mazeX >= mazeSize || mazeZ < 0 || mazeZ >= mazeSize) return true;
             return maze[mazeX][mazeZ] === 1;
         }
-
-        // Movement controls
-        const keys = { w: false, s: false, a: false, d: false };
-        document.addEventListener('keydown', (e) => {
-            if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
-        });
-        document.addEventListener('keyup', (e) => {
-            if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
-        });
 
         // Animation loop
         function animate() {
             requestAnimationFrame(animate);
 
-            if (player) {
-                const moveSpeed = 0.05;
-                const direction = new THREE.Vector3();
+            if (!isMapView) {
+                const moveVector = new THREE.Vector3();
+                if (keys['w'] || keys['arrowup']) moveVector.z -= moveSpeed;
+                if (keys['s'] || keys['arrowdown']) moveVector.z += moveSpeed;
+                if (keys['a'] || keys['arrowleft']) moveVector.x -= moveSpeed;
+                if (keys['d'] || keys['arrowright']) moveVector.x += moveSpeed;
 
-                if (keys.w) direction.z -= moveSpeed;
-                if (keys.s) direction.z += moveSpeed;
-                if (keys.a) direction.x -= moveSpeed;
-                if (keys.d) direction.x += moveSpeed;
+                moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
 
-                direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
-                const newX = player.position.x + direction.x;
-                const newZ = player.position.z + direction.z;
+                const newX = player.position.x + moveVector.x;
+                const newZ = player.position.z + moveVector.z;
 
                 if (!checkCollision(newX, player.position.z)) player.position.x = newX;
                 if (!checkCollision(player.position.x, newZ)) player.position.z = newZ;
 
-                camera.position.set(player.position.x, player.position.y + 1.5, player.position.z + 3);
-                camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
+                renderer.render(scene, camera);
+            } else {
+                renderer.render(scene, mapCamera);
             }
-
-            renderer.render(scene, camera);
         }
+
+        window.addEventListener('resize', () => {
+            const aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = aspect;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
 
         animate();
     </script>
