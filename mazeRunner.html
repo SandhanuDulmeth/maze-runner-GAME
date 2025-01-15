@@ -71,8 +71,59 @@
                 }
             }
         }
+//         function createMazePaths() {
+//     // Initialize all cells as walls
+//     for (let i = 0; i < mazeSize; i++) {
+//         for (let j = 0; j < mazeSize; j++) {
+//             maze[i][j] = 1;
+//         }
+//     }
 
+//     // Directions for moving in the maze (up, down, left, right)
+//     const directions = [
+//         { dx: 0, dz: -2 },
+//         { dx: 0, dz: 2 },
+//         { dx: -2, dz: 0 },
+//         { dx: 2, dz: 0 }
+//     ];
+
+//     function shuffle(array) {
+//         for (let i = array.length - 1; i > 0; i--) {
+//             const j = Math.floor(Math.random() * (i + 1));
+//             [array[i], array[j]] = [array[j], array[i]];
+//         }
+//     }
+
+//     // Recursive function to carve paths
+//     function carvePath(x, z) {
+//         maze[x][z] = 0; // Mark the current cell as a path
+//         shuffle(directions); // Shuffle directions for randomness
+
+//         for (const { dx, dz } of directions) {
+//             const nx = x + dx;
+//             const nz = z + dz;
+
+//             // Check if the next cell is within bounds and still a wall
+//             if (nx > 0 && nx < mazeSize - 1 && nz > 0 && nz < mazeSize - 1 && maze[nx][nz] === 1) {
+//                 // Carve a path between the current cell and the next cell
+//                 maze[x + dx / 2][z + dz / 2] = 0;
+//                 carvePath(nx, nz);
+//             }
+//         }
+//     }
+
+//     // Start carving from the start position
+//     carvePath(startPos.x, startPos.z);
+
+//     // Ensure the ending area is clear
+//     for (let i = mazeSize - 4; i < mazeSize - 1; i++) {
+//         for (let j = mazeSize - 4; j < mazeSize - 1; j++) {
+//             maze[i][j] = 0;
+//         }
+//     }
+// }
         createMazePaths();
+// 
 
         const startMarkerGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
         const startMarkerMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
