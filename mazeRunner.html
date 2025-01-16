@@ -1,130 +1,137 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <title>3D Maze Runner - Third Person</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { margin: 0; }
-        canvas { display: block; }
+        body {
+            margin: 0;
+        }
+
+        canvas {
+            display: block;
+        }
+
         #info {
             position: absolute;
             top: 10px;
             left: 10px;
             color: white;
-            font-family: Arial, sans-serif;
             font-size: 16px;
             background: rgba(0, 0, 0, 0.5);
             padding: 10px;
+            z-index: 100;
+        }
+
+        #difficulty-select {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .difficulty-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 4px;
+            background: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .difficulty-btn:hover {
+            background: #45a049;
+        }
+
+        .hidden {
+            display: none;
         }
     </style>
 </head>
+
 <body>
     <div id="info">Click to start | WASD or Arrow keys to move | Mouse to look around | M for map view</div>
+    <div id="difficulty-select">
+        <h2>Select Maze Difficulty</h2>
+        <button class="difficulty-btn" data-size="20">Easy (20x20)</button>
+        <button class="difficulty-btn" data-size="40">Medium (40x40)</button>
+        <button class="difficulty-btn" data-size="60">Hard (60x60)</button>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        scene.background = new THREE.Color(0x87CEEB);
-
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-        directionalLight.position.set(10, 20, 10);
-        scene.add(directionalLight);
-
-        const mazeSize = 20;
-        const maze = Array(mazeSize).fill().map(() => Array(mazeSize).fill(1));
-        
-        // Define start and end positions
-        const startPos = { x: 1, z: 1 };
-        const endPos = { x: mazeSize - 2, z: mazeSize - 2 };
-
-        function createMazePaths() {
-            for (let i = 0; i < mazeSize; i++) {
-                for (let j = 0; j < mazeSize; j++) {
-                    if (i === 0 || i === mazeSize-1 || j === 0 || j === mazeSize-1) {
-                        maze[i][j] = 1;
-                    } else {
-                        maze[i][j] = Math.random() < 0.4 ? 1 : 0;
+            let mazeSize = 0;
+            const difficultySelect = document.getElementById('difficulty-select');
+            const buttons = document.querySelectorAll('.difficulty-btn');
+            
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    mazeSize = parseInt(button.dataset.size);
+                    difficultySelect.classList.add('hidden');
+                    initGame();
+                });
+            });
+    
+            function initGame() {
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                document.body.appendChild(renderer.domElement);
+            
+                scene.background = new THREE.Color(0x87CEEB);
+                
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                scene.add(ambientLight);
+    
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(1, 1, 1);
+                scene.add(directionalLight);
+    
+                // Initialize maze
+                const maze = Array(mazeSize).fill().map(() => Array(mazeSize).fill(1));
+                const startPos = { x: 1, z: 1 };
+                const endPos = { x: mazeSize - 2, z: mazeSize - 2 };
+            
+                // Generate maze paths
+                function createMazePaths() {
+                    for (let i = 0; i < mazeSize; i++) {
+                        for (let j = 0; j < mazeSize; j++) {
+                            if (i === 0 || i === mazeSize - 1 || j === 0 || j === mazeSize - 1) {
+                                maze[i][j] = 1;
+                            } else {
+                                maze[i][j] = Math.random() < 0.4 ? 1 : 0;
+                            }
+                        }
+                    }
+    
+                    // Clear starting and ending areas
+                    for (let i = 1; i < 4; i++) {
+                        for (let j = 1; j < 4; j++) {
+                            maze[i][j] = 0;
+                        }
+                    }
+    
+                    for (let i = mazeSize - 4; i < mazeSize - 1; i++) {
+                        for (let j = mazeSize - 4; j < mazeSize - 1; j++) {
+                            maze[i][j] = 0;
+                        }
                     }
                 }
-            }
             
-            // Clear starting area and ending area
-            for (let i = 1; i < 4; i++) {
-                for (let j = 1; j < 4; j++) {
-                    maze[i][j] = 0;
-                }
-            }
+                createMazePaths();
             
-            for (let i = mazeSize - 4; i < mazeSize - 1; i++) {
-                for (let j = mazeSize - 4; j < mazeSize - 1; j++) {
-                    maze[i][j] = 0;
-                }
-            }
-        }
-//         function createMazePaths() {
-//     // Initialize all cells as walls
-//     for (let i = 0; i < mazeSize; i++) {
-//         for (let j = 0; j < mazeSize; j++) {
-//             maze[i][j] = 1;
-//         }
-//     }
-
-//     // Directions for moving in the maze (up, down, left, right)
-//     const directions = [
-//         { dx: 0, dz: -2 },
-//         { dx: 0, dz: 2 },
-//         { dx: -2, dz: 0 },
-//         { dx: 2, dz: 0 }
-//     ];
-
-//     function shuffle(array) {
-//         for (let i = array.length - 1; i > 0; i--) {
-//             const j = Math.floor(Math.random() * (i + 1));
-//             [array[i], array[j]] = [array[j], array[i]];
-//         }
-//     }
-
-//     // Recursive function to carve paths
-//     function carvePath(x, z) {
-//         maze[x][z] = 0; // Mark the current cell as a path
-//         shuffle(directions); // Shuffle directions for randomness
-
-//         for (const { dx, dz } of directions) {
-//             const nx = x + dx;
-//             const nz = z + dz;
-
-//             // Check if the next cell is within bounds and still a wall
-//             if (nx > 0 && nx < mazeSize - 1 && nz > 0 && nz < mazeSize - 1 && maze[nx][nz] === 1) {
-//                 // Carve a path between the current cell and the next cell
-//                 maze[x + dx / 2][z + dz / 2] = 0;
-//                 carvePath(nx, nz);
-//             }
-//         }
-//     }
-
-//     // Start carving from the start position
-//     carvePath(startPos.x, startPos.z);
-
-//     // Ensure the ending area is clear
-//     for (let i = mazeSize - 4; i < mazeSize - 1; i++) {
-//         for (let j = mazeSize - 4; j < mazeSize - 1; j++) {
-//             maze[i][j] = 0;
-//         }
-//     }
-// }
-        createMazePaths();
-// 
-
         const startMarkerGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
         const startMarkerMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
         const startMarker = new THREE.Mesh(startMarkerGeometry, startMarkerMaterial);
@@ -139,30 +146,67 @@
 
         let endMarkerY = 0;
 
-        const walls = [];
-        const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
-        const wallMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
+const walls = [];
 
-        for (let i = 0; i < mazeSize; i++) {
-            for (let j = 0; j < mazeSize; j++) {
-                if (maze[i][j] === 1) {
-                    const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-                    wall.position.set(i - mazeSize / 2, 1, j - mazeSize / 2);
-                    wall.geometry.computeBoundingBox();
-                    wall.boundingBox = wall.geometry.boundingBox.clone();
-                    wall.boundingBox.min.add(wall.position);
-                    wall.boundingBox.max.add(wall.position);
-                    scene.add(wall);
-                    walls.push(wall);
-                }
-            }
+
+const createStyledWall = (x, z) => {
+    const wallGeometry = new THREE.BoxGeometry(1, 2, 1); // Made height 2 units
+    const wallMaterial = new THREE.MeshStandardMaterial({
+        color: 0x8B0001,  // Dark red color
+        roughness: 0.7,
+        metalness: 0.1
+    });
+
+    // Create main wall mesh
+    const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+    
+    // Create edges
+    const edgesGeometry = new THREE.EdgesGeometry(wallGeometry);
+    const edgesMaterial = new THREE.LineBasicMaterial({
+        color: 0x000000,
+        linewidth: 1
+    });
+    const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+    
+    // Add edges to wall
+    wall.add(edges);
+    
+    // Position the wall
+    wall.position.set(x - mazeSize / 2, 1, z - mazeSize / 2);
+    
+    // Compute bounding box for collision detection
+    wall.geometry.computeBoundingBox();
+    wall.boundingBox = wall.geometry.boundingBox.clone();
+    wall.boundingBox.min.add(wall.position);
+    wall.boundingBox.max.add(wall.position);
+    
+    return wall;
+};
+
+
+// Create maze walls
+for (let i = 0; i < mazeSize; i++) {
+    for (let j = 0; j < mazeSize; j++) {
+        if (maze[i][j] === 1) {
+            const wall = createStyledWall(i, j);
+            scene.add(wall);
+            walls.push(wall);
         }
+    }
+}
 
-        const floorGeometry = new THREE.PlaneGeometry(mazeSize, mazeSize);
-        const floorMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22, side: THREE.DoubleSide });
-        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-        floor.rotation.x = Math.PI / 2;
-        scene.add(floor);
+// Create floor
+const floorGeometry = new THREE.PlaneGeometry(mazeSize, mazeSize);
+const floorMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x228B22,  // Green color
+    side: THREE.DoubleSide,
+    roughness: 0.8,
+    metalness: 0.1
+});
+const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+floor.rotation.x = Math.PI / 2;
+floor.position.y = 0;  // Place at bottom of walls
+scene.add(floor);
 
         const playerBody = new THREE.Group();
         const bodyGeometry = new THREE.BoxGeometry(0.3, 0.6, 0.2);
@@ -315,7 +359,7 @@
 
                 if (moved) {
                     moveVector.normalize().multiplyScalar(moveSpeed);
-                    
+
                     legAngle += 0.2;
                     const legMovement = Math.sin(legAngle) * 0.2;
                     leftLeg.position.z = legMovement;
@@ -364,6 +408,8 @@
         });
 
         animate();
+    }
     </script>
 </body>
+
 </html>
