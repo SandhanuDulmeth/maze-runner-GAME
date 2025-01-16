@@ -65,9 +65,9 @@
     <div id="info">Click to start | WASD or Arrow keys to move | Mouse to look around | M for map view</div>
     <div id="difficulty-select">
         <h2>Select Maze Difficulty</h2>
-        <button class="difficulty-btn" data-size="20">Easy (20x20)</button>
-        <button class="difficulty-btn" data-size="40">Medium (40x40)</button>
-        <button class="difficulty-btn" data-size="60">Hard (60x60)</button>
+        <button class="difficulty-btn" data-size="40">Easy (40x40)</button>
+        <button class="difficulty-btn" data-size="60">Medium (60x60)</button>
+        <button class="difficulty-btn" data-size="80">Hard (80x80)</button>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -105,31 +105,108 @@
                 const endPos = { x: mazeSize - 2, z: mazeSize - 2 };
             
                 // Generate maze paths
-                function createMazePaths() {
-                    for (let i = 0; i < mazeSize; i++) {
-                        for (let j = 0; j < mazeSize; j++) {
-                            if (i === 0 || i === mazeSize - 1 || j === 0 || j === mazeSize - 1) {
-                                maze[i][j] = 1;
-                            } else {
-                                maze[i][j] = Math.random() < 0.4 ? 1 : 0;
-                            }
-                        }
-                    }
+                // function createMazePaths() {
+                //     for (let i = 0; i < mazeSize; i++) {
+                //         for (let j = 0; j < mazeSize; j++) {
+                //             if (i === 0 || i === mazeSize - 1 || j === 0 || j === mazeSize - 1) {
+                //                 maze[i][j] = 1;
+                //             } else {
+                //                 maze[i][j] = Math.random() < 0.4 ? 1 : 0;
+                //             }
+                //         }
+                //     }
     
-                    // Clear starting and ending areas
-                    for (let i = 1; i < 4; i++) {
-                        for (let j = 1; j < 4; j++) {
-                            maze[i][j] = 0;
-                        }
-                    }
+                //     // Clear starting and ending areas
+                //     for (let i = 1; i < 4; i++) {
+                //         for (let j = 1; j < 4; j++) {
+                //             maze[i][j] = 0;
+                //         }
+                //     }
     
-                    for (let i = mazeSize - 4; i < mazeSize - 1; i++) {
-                        for (let j = mazeSize - 4; j < mazeSize - 1; j++) {
-                            maze[i][j] = 0;
-                        }
-                    }
-                }
+                //     for (let i = mazeSize - 4; i < mazeSize - 1; i++) {
+                //         for (let j = mazeSize - 4; j < mazeSize - 1; j++) {
+                //             maze[i][j] = 0;
+                //         }
+                //     }
+                // }
+            // Replace the existing createMazePaths function with this one
+function createMazePaths() {
+    // First generate the random maze
+    for (let i = 0; i < mazeSize; i++) {
+        for (let j = 0; j < mazeSize; j++) {
+            if (i === 0 || i === mazeSize - 1 || j === 0 || j === mazeSize - 1) {
+                maze[i][j] = 1;  // Border walls
+            } else {
+                maze[i][j] = Math.random() < 0.4 ? 1 : 0;
+            }
+        }
+    }
+
+    // Clear starting and ending areas
+    for (let i = 1; i < 4; i++) {
+        for (let j = 1; j < 4; j++) {
+            maze[i][j] = 0;
+        }
+    }
+
+    for (let i = mazeSize - 4; i < mazeSize - 1; i++) {
+        for (let j = mazeSize - 4; j < mazeSize - 1; j++) {
+            maze[i][j] = 0;
+        }
+    }
+
+    // Function to check if a path exists
+    function hasPath(startX, startY, endX, endY) {
+        const visited = Array(mazeSize).fill().map(() => Array(mazeSize).fill(false));
+        const stack = [[startX, startY]];
+        
+        while (stack.length > 0) {
+            const [x, y] = stack.pop();
             
+            if (x === endX && y === endY) return true;
+            if (visited[x][y]) continue;
+            
+            visited[x][y] = true;
+            
+            // Check all four directions
+            const directions = [
+                [x + 1, y], [x - 1, y],
+                [x, y + 1], [x, y - 1]
+            ];
+            
+            for (const [newX, newY] of directions) {
+                if (newX >= 0 && newX < mazeSize && 
+                    newY >= 0 && newY < mazeSize && 
+                    !maze[newX][newY] && 
+                    !visited[newX][newY]) {
+                    stack.push([newX, newY]);
+                }
+            }
+        }
+        return false;
+    }
+
+    // Keep generating new mazes until we find one with a valid path
+    while (!hasPath(startPos.x, startPos.z, endPos.x, endPos.z)) {
+        // Create a path by clearing random walls
+        let currentX = startPos.x;
+        let currentZ = startPos.z;
+        
+        while (currentX !== endPos.x || currentZ !== endPos.z) {
+            if (Math.random() < 0.5 && currentX !== endPos.x) {
+                // Move horizontally
+                const nextX = currentX + (currentX < endPos.x ? 1 : -1);
+                maze[nextX][currentZ] = 0;
+                currentX = nextX;
+            } else if (currentZ !== endPos.z) {
+                // Move vertically
+                const nextZ = currentZ + (currentZ < endPos.z ? 1 : -1);
+                maze[currentX][nextZ] = 0;
+                currentZ = nextZ;
+            }
+        }
+    }
+}
                 createMazePaths();
             
         const startMarkerGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
