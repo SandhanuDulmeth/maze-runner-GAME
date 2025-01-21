@@ -70,6 +70,7 @@
         <button class="difficulty-btn" data-size="80">Hard (80x80)</button>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="stats.js"></script>
     <script>
         let mazeSize = 0;
         const difficultySelect = document.getElementById('difficulty-select');
@@ -375,9 +376,13 @@
                 }
                 return idealPosition;
             }
+            var stats = new Stats();
+            stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+            document.body.appendChild(stats.dom);
 
             function animate() {
-                requestAnimationFrame(animate);
+                stats.begin();
+               // requestAnimationFrame(animate);
 
                 endMarkerY += 0.05;
                 endMarker.position.y = 0.05 + Math.sin(endMarkerY) * 0.1;
@@ -450,6 +455,8 @@
                 } else {
                     renderer.render(scene, mapCamera);
                 }
+                stats.end();
+                requestAnimationFrame(animate);
             }
 
             window.addEventListener('resize', () => {
