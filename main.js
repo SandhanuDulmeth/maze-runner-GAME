@@ -29,17 +29,9 @@ function initGame() {
 
     generateMaze(mazeSize, startPos, endPos, maze);
 
-    const startMarkerGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
-    const startMarkerMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-    const startMarker = new THREE.Mesh(startMarkerGeometry, startMarkerMaterial);
-    startMarker.position.set(startPos.x - mazeSize / 2, 0.05, startPos.z - mazeSize / 2);
-    scene.add(startMarker);
+   const startEndPositionsData = startEndPositions(mazeSize, startPos, endPos, scene);
+    const endMarker = startEndPositionsData.endMarker;
 
-    const endMarkerGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
-    const endMarkerMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-    const endMarker = new THREE.Mesh(endMarkerGeometry, endMarkerMaterial);
-    endMarker.position.set(endPos.x - mazeSize / 2, 0.05, endPos.z - mazeSize / 2);
-    scene.add(endMarker);
 
     let endMarkerY = 0;
 
