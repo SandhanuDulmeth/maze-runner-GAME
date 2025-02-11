@@ -243,8 +243,7 @@ function initGame() {
 
     function animate() {
         stats.begin();
-        requestAnimationFrame(animate);
-
+       
         endMarkerY += 0.05;
         endMarker.position.y = 0.05 + Math.sin(endMarkerY) * 0.1;
         updateWallVisibility();
@@ -317,14 +316,14 @@ function initGame() {
             renderer.render(scene, mapCamera);
         }
         stats.end();
-        //requestAnimationFrame(animate);
+        requestAnimationFrame(animate);
     }
     function updateWallVisibility() {
-        // Adjust the visibilityDistance value to suit your maze size
+      
         const visibilityDistance = 20;
         const playerPos = playerBody.position;
         walls.forEach(wall => {
-            // Use distance between wall and player to determine if wall should be visible
+          
             const distance = wall.position.distanceTo(playerPos);
             wall.visible = distance < visibilityDistance;
         });
