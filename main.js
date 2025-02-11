@@ -11,13 +11,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-
-
 function initGame() {
     const scene = new THREE.Scene();
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
+
+
+   
 
 
     backgroundAndLighting(scene);
@@ -29,7 +30,7 @@ function initGame() {
 
     generateMaze(mazeSize, startPos, endPos, maze);
 
-   const startEndPositionsData = startEndPositions(mazeSize, startPos, endPos, scene);
+    const startEndPositionsData = startEndPositions(mazeSize, startPos, endPos, scene);
     const endMarker = startEndPositionsData.endMarker;
 
 
@@ -96,14 +97,39 @@ function initGame() {
     floor.position.y = 0;
     scene.add(floor);
 
-    const playerData = player(scene);
-    const playerBody = playerData.playerBody;
+    const playerData = bestPlayer(scene);
+
+    const player = playerData.player;
     const playerBoundingBox = playerData.playerBoundingBox;
     const playerSize = playerData.playerSize;
     const leftLeg = playerData.leftLeg;
     const rightLeg = playerData.rightLeg;
-    const body = playerData.body;
+    const leftArm = playerData.leftArm;
+    const rightArm = playerData.rightArm;
+    const torso = playerData.torso;
+    const neck = playerData.neck;
+    const head = playerData.head;
 
+
+    // const playerBody = playerData.playerBody;
+    // const playerBoundingBox = playerData.playerBoundingBox;
+    // const playerSize = playerData.playerSize;
+    // const leftLeg = playerData.leftLeg;
+    // const rightLeg = playerData.rightLeg;
+    // const body = playerData.body;
+    // const leftArm = playerData.leftArm;
+    // const rightArm = playerData.rightArm;
+
+
+    //    playerBoundingBox,
+    //    playerSize,
+    //    leftLeg,
+    //    rightLeg,
+    //    leftArm,
+    //    rightArm,
+    //    torso,
+    //    neck,
+    //    head
 
     const cameraData = createCamera(window.innerWidth / window.innerHeight);
     const camera = cameraData.camera;
@@ -189,7 +215,7 @@ function initGame() {
     }
 
     function checkWinCondition() {
-        const distance = playerBody.position.distanceTo(endMarker.position);
+        const distance = player.position.distanceTo(endMarker.position);
         if (distance < 1 && !gameWon) {
             gameWon = true;
             document.getElementById('info').innerHTML = 'Congratulations! You reached the end! Press R to restart';
@@ -243,15 +269,15 @@ function initGame() {
 
     function animate() {
         stats.begin();
-       
+
         endMarkerY += 0.05;
         endMarker.position.y = 0.05 + Math.sin(endMarkerY) * 0.1;
         updateWallVisibility();
         if (!isMapView && !gameWon) {
-            playerBody.rotation.y += (targetRotation - playerBody.rotation.y) * 0.1;
+            player.rotation.y += (targetRotation - player.rotation.y) * 0.1;
 
-            const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), playerBody.rotation.y);
-            const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), playerBody.rotation.y);
+            const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+            const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
 
             let moved = false;
             const moveVector = new THREE.Vector3(0, 0, 0);
@@ -274,39 +300,52 @@ function initGame() {
             }
 
             if (moved) {
+                // Normalize movement vector and apply speed
                 moveVector.normalize().multiplyScalar(moveSpeed);
 
+                // Update animation angle
                 legAngle += 0.2;
-                const legMovement = Math.sin(legAngle) * 0.2;
-                leftLeg.position.z = legMovement;
-                rightLeg.position.z = -legMovement;
-                leftLeg.rotation.x = legMovement;
-                rightLeg.rotation.x = -legMovement;
-                body.position.y = 0.3 + Math.abs(Math.sin(legAngle * 2)) * 0.05;
+                const swing = Math.sin(legAngle) * 0.2;
 
-                const newPosition = playerBody.position.clone().add(moveVector);
+                // Swing legs (rotate the leg groups around the hip)
+                leftLeg.rotation.x = swing;
+                rightLeg.rotation.x = -swing;
 
+                // Swing arms in the opposite phase for a natural walking motion
+                leftArm.rotation.x = -swing;
+                rightArm.rotation.x = swing;
+
+                // Slight bobbing effect for the torso
+                torso.position.y = 0.5 + Math.abs(Math.sin(legAngle * 2)) * 0.05;
+
+                // Calculate and set the new player position if no collision
+                const newPosition = player.position.clone().add(moveVector);
                 if (!checkCollision(newPosition)) {
-                    playerBody.position.copy(newPosition);
+                    player.position.copy(newPosition);
                     checkWinCondition();
                 }
             } else {
+                // Reset limb rotations when not moving
                 legAngle = 0;
-                leftLeg.position.z = 0;
-                rightLeg.position.z = 0;
                 leftLeg.rotation.x = 0;
                 rightLeg.rotation.x = 0;
-                body.position.y = 0.3;
+                leftArm.rotation.x = 0;
+                rightArm.rotation.x = 0;
+                torso.position.y = 0.5;
             }
+
+
+
+
 
             const cameraOffset = new THREE.Vector3(
                 0,
                 cameraHeight,
                 cameraDistance
-            ).applyAxisAngle(new THREE.Vector3(0, 1, 0), playerBody.rotation.y);
+            ).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
 
-            const idealCameraPos = playerBody.position.clone().add(cameraOffset);
-            const lookAtPos = playerBody.position.clone().add(new THREE.Vector3(0, 0.5, 0));
+            const idealCameraPos = player.position.clone().add(cameraOffset);
+            const lookAtPos = player.position.clone().add(new THREE.Vector3(0, 0.5, 0));
 
             camera.position.copy(adjustCameraPosition(idealCameraPos, lookAtPos));
             camera.lookAt(lookAtPos);
@@ -319,11 +358,11 @@ function initGame() {
         requestAnimationFrame(animate);
     }
     function updateWallVisibility() {
-      
+
         const visibilityDistance = 20;
-        const playerPos = playerBody.position;
+        const playerPos = player.position;
         walls.forEach(wall => {
-          
+
             const distance = wall.position.distanceTo(playerPos);
             wall.visible = distance < visibilityDistance;
         });
@@ -337,3 +376,28 @@ function initGame() {
 
     animate();
 }
+
+
+
+
+
+
+
+
+
+
+document.getElementById("More").addEventListener("click", function () {
+   
+    window.location.href = "test.html";
+});
+document.getElementById("difficulty-select").addEventListener("click", function () {
+    console.log("clicked");
+    
+    const stopButton =  document.getElementById("More");
+
+    stopButton.disabled = true;
+
+    stopButton.textContent = "Disabled";
+    stopButton.style.opacity = 0.5; 
+});
+ 
