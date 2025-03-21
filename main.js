@@ -1,4 +1,4 @@
-
+// E:\sandhanu\icet\Project\Mos Burger\maze-runner-GAME\main.js
 let mazeSize = 0;
 document.addEventListener('DOMContentLoaded', () => {
     const difficultySelect = document.getElementById('difficulty-select');
@@ -17,12 +17,7 @@ function initGame() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-
-   
-
-
     backgroundAndLighting(scene);
-
 
     const maze = Array(mazeSize).fill().map(() => Array(mazeSize).fill(1));
     const startPos = { x: 1, z: 1 };
@@ -33,11 +28,9 @@ function initGame() {
     const startEndPositionsData = startEndPositions(mazeSize, startPos, endPos, scene);
     const endMarker = startEndPositionsData.endMarker;
 
-
     let endMarkerY = 0;
 
     const walls = [];
-
 
     const createStyledWall = (x, z) => {
         const wallGeometry = new THREE.BoxGeometry(1, 2, 1);
@@ -47,9 +40,7 @@ function initGame() {
             metalness: 0.1
         });
 
-
         const wall = new THREE.Mesh(wallGeometry, wallMaterial);
-
 
         const edgesGeometry = new THREE.EdgesGeometry(wallGeometry);
         const edgesMaterial = new THREE.LineBasicMaterial({
@@ -58,12 +49,9 @@ function initGame() {
         });
         const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
 
-
         wall.add(edges);
 
-
         wall.position.set(x - mazeSize / 2, 1, z - mazeSize / 2);
-
 
         wall.geometry.computeBoundingBox();
         wall.boundingBox = wall.geometry.boundingBox.clone();
@@ -72,8 +60,6 @@ function initGame() {
 
         return wall;
     };
-
-
 
     for (let i = 0; i < mazeSize; i++) {
         for (let j = 0; j < mazeSize; j++) {
@@ -110,33 +96,10 @@ function initGame() {
     const neck = playerData.neck;
     const head = playerData.head;
 
-
-    // const playerBody = playerData.playerBody;
-    // const playerBoundingBox = playerData.playerBoundingBox;
-    // const playerSize = playerData.playerSize;
-    // const leftLeg = playerData.leftLeg;
-    // const rightLeg = playerData.rightLeg;
-    // const body = playerData.body;
-    // const leftArm = playerData.leftArm;
-    // const rightArm = playerData.rightArm;
-
-
-    //    playerBoundingBox,
-    //    playerSize,
-    //    leftLeg,
-    //    rightLeg,
-    //    leftArm,
-    //    rightArm,
-    //    torso,
-    //    neck,
-    //    head
-
     const cameraData = createCamera(window.innerWidth / window.innerHeight);
     const camera = cameraData.camera;
     const cameraDistance = cameraData.cameraDistance;
     const cameraHeight = cameraData.cameraHeight;
-
-
 
     let mouseX = 0;
     let targetRotation = 0;
@@ -148,6 +111,9 @@ function initGame() {
     let legAngle = 0;
     let gameWon = false;
 
+    // Add this flag at the top of your initGame()
+    let isAnimating = false;
+
     document.addEventListener('click', () => {
         if (!isMouseLocked) {
             pointerlockchange()
@@ -156,13 +122,11 @@ function initGame() {
 
     document.addEventListener('pointerlockchange', () => {
         isMouseLocked = document.pointerLockElement === renderer.domElement;
-
     });
 
     function pointerlockchange() {
         renderer.domElement.requestPointerLock();
     }
-
 
     document.addEventListener('mousemove', (e) => {
         if (isMouseLocked && !isMapView) {
@@ -174,30 +138,61 @@ function initGame() {
     window.addEventListener('keydown', (e) => {
         keys[e.key.toLowerCase()] = true;
         if (e.key.toLowerCase() === 'm') {
-            pointerlockchange();
-            isMapView = !isMapView;
-            if (isMapView) {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            const targetIsMapView = !isMapView;
+            const mazeCenter = new THREE.Vector3(0, 0, 0);
+            let targetPosition, targetLookAt;
+
+            if (targetIsMapView) {
+                // Map view position
+                targetPosition = new THREE.Vector3(0, mazeSize * 2, 0);
+                targetLookAt = mazeCenter;
+            } else {
+                // Game view position
+                const cameraOffset = new THREE.Vector3(0, cameraHeight, cameraDistance)
+                    .applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+                targetPosition = player.position.clone().add(cameraOffset);
+                targetLookAt = player.position.clone().add(new THREE.Vector3(0, 0.5, 0));
+            }
+
+            // Animate camera position
+            new TWEEN.Tween(camera.position)
+                .to(targetPosition, 1000)
+                .easing(TWEEN.Easing.Quadratic.InOut)
+                .start();
+
+            // Animate camera rotation
+            new TWEEN.Tween(camera.rotation)
+                .to({
+                    x: targetIsMapView ? -Math.PI / 2 : camera.rotation.x,
+                    y: targetIsMapView ? 0 : camera.rotation.y,
+                    z: 0
+                }, 1000)
+                .onUpdate(() => camera.lookAt(targetLookAt))
+                .onComplete(() => {
+                    isMapView = targetIsMapView;
+                    isAnimating = false;
+                })
+                .start();
+
+            // Update UI
+            if (targetIsMapView) {
                 stats.dom.style.display = 'none';
                 document.getElementById('info').innerHTML = 'Press M to return to the game';
-
             } else {
                 stats.dom.style.display = 'block';
                 document.getElementById('info').innerHTML = 'Click to start | WASD or Arrow keys to move | Mouse to look around | M for map view | F for FullScreen ';
             }
-
-
-
-        };
+        }
     });
 
     window.addEventListener('keyup', (e) => {
         keys[e.key.toLowerCase()] = false;
-
-
     });
 
     const mapCamera = createMapCamera(mazeSize);
-
 
     function checkCollision(newPosition) {
         playerBoundingBox.setFromCenterAndSize(
@@ -241,19 +236,14 @@ function initGame() {
         return idealPosition;
     }
 
-
-
     document.addEventListener('keydown', (event) => {
         if (event.key.toLowerCase() === 'f') {
             toggleFullscreen();
-
-
-
         }
     });
+
     function toggleFullscreen() {
         if (!document.fullscreenElement) {
-
             document.documentElement.requestFullscreen().catch(err => {
                 console.error(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`);
             });
@@ -262,12 +252,12 @@ function initGame() {
         }
     }
 
-
     var stats = new Stats();
     stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
     document.body.appendChild(stats.dom);
 
     function animate() {
+        TWEEN.update(); // Add this at the start
         stats.begin();
 
         endMarkerY += 0.05;
@@ -334,10 +324,6 @@ function initGame() {
                 torso.position.y = 0.5;
             }
 
-
-
-
-
             const cameraOffset = new THREE.Vector3(
                 0,
                 cameraHeight,
@@ -352,17 +338,17 @@ function initGame() {
 
             renderer.render(scene, camera);
         } else {
-            renderer.render(scene, mapCamera);
+            camera.lookAt(isMapView ? new THREE.Vector3(0, 0, 0) : player.position);
+            renderer.render(scene, camera); // Use camera instead of mapCamera
         }
         stats.end();
         requestAnimationFrame(animate);
     }
-    function updateWallVisibility() {
 
+    function updateWallVisibility() {
         const visibilityDistance = 20;
         const playerPos = player.position;
         walls.forEach(wall => {
-
             const distance = wall.position.distanceTo(playerPos);
             wall.visible = distance < visibilityDistance;
         });
@@ -377,27 +363,13 @@ function initGame() {
     animate();
 }
 
-
-
-
-
-
-
-
-
-
 document.getElementById("More").addEventListener("click", function () {
-   
     window.location.href = "test.html";
 });
 document.getElementById("difficulty-select").addEventListener("click", function () {
     console.log("clicked");
-    
-    const stopButton =  document.getElementById("More");
-
+    const stopButton = document.getElementById("More");
     stopButton.disabled = true;
-
     stopButton.textContent = "Disabled";
-    stopButton.style.opacity = 0.5; 
+    stopButton.style.opacity = 0.5;
 });
- 
