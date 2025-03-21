@@ -111,8 +111,10 @@ function initGame() {
     let legAngle = 0;
     let gameWon = false;
 
-    // Add this flag at the top of your initGame()
+    // Add these at the top of initGame()
     let isAnimating = false;
+    let targetCameraPosition = new THREE.Vector3();
+    let targetCameraLookAt = new THREE.Vector3();
 
     document.addEventListener('click', () => {
         if (!isMouseLocked) {
@@ -139,60 +141,73 @@ function initGame() {
         keys[e.key.toLowerCase()] = true;
         if (e.key.toLowerCase() === 'm') {
             if (isAnimating) return;
-            isAnimating = true;
 
-            const targetIsMapView = !isMapView;
+            const newMapViewState = !isMapView;
             const mazeCenter = new THREE.Vector3(0, 0, 0);
-            let targetPosition, targetLookAt;
 
-            if (targetIsMapView) {
-                // Map view position
-                targetPosition = new THREE.Vector3(0, mazeSize * 2, 0);
-                targetLookAt = mazeCenter;
+            // Set up animation targets
+            if (newMapViewState) {
+                // Transition to map view
+                targetCameraPosition.set(0, mazeSize * 1, 0); // Increase height and distance for larger map view
+                targetCameraLookAt.copy(mazeCenter);
             } else {
-                // Game view position
+                // Transition back to player view
                 const cameraOffset = new THREE.Vector3(0, cameraHeight, cameraDistance)
                     .applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
-                targetPosition = player.position.clone().add(cameraOffset);
-                targetLookAt = player.position.clone().add(new THREE.Vector3(0, 0.5, 0));
+                targetCameraPosition.copy(player.position.clone().add(cameraOffset));
+                targetCameraLookAt.copy(player.position.clone().add(new THREE.Vector3(0, 0.5, 0)));
             }
 
-            // Animate camera position
-            new TWEEN.Tween(camera.position)
-                .to(targetPosition, 1000)
-                .easing(TWEEN.Easing.Quadratic.InOut)
-                .start();
+            // Start animation
+            isAnimating = true;
 
-            // Animate camera rotation
-            new TWEEN.Tween(camera.rotation)
-                .to({
-                    x: targetIsMapView ? -Math.PI / 2 : camera.rotation.x,
-                    y: targetIsMapView ? 0 : camera.rotation.y,
-                    z: 0
-                }, 1000)
-                .onUpdate(() => camera.lookAt(targetLookAt))
-                .onComplete(() => {
-                    isMapView = targetIsMapView;
-                    isAnimating = false;
-                })
-                .start();
+            new TWEEN.Tween({
+                x: camera.position.x,
+                y: camera.position.y,
+                z: camera.position.z
+            })
+            .to({
+                x: targetCameraPosition.x,
+                y: targetCameraPosition.y,
+                z: targetCameraPosition.z
+            }, 1000)
+            .easing(TWEEN.Easing.Quadratic.InOut)
+            .onUpdate((obj) => {
+                camera.position.set(obj.x, obj.y, obj.z);
 
-            // Update UI
-            if (targetIsMapView) {
-                stats.dom.style.display = 'none';
-                document.getElementById('info').innerHTML = 'Press M to return to the game';
-            } else {
-                stats.dom.style.display = 'block';
-                document.getElementById('info').innerHTML = 'Click to start | WASD or Arrow keys to move | Mouse to look around | M for map view | F for FullScreen ';
-            }
+                // Smoothly adjust lookAt during transition
+                const progress = obj.y / targetCameraPosition.y;
+                const currentLookAt = new THREE.Vector3().lerpVectors(
+                    isMapView ? targetCameraLookAt : mazeCenter,
+                    newMapViewState ? mazeCenter : targetCameraLookAt,
+                    progress
+                );
+
+                camera.lookAt(currentLookAt);
+            })
+            .onComplete(() => {
+                isMapView = newMapViewState;
+                isAnimating = false;
+
+                // Force final lookAt position
+                camera.lookAt(targetCameraLookAt);
+
+                // Update UI
+                if (isMapView) {
+                    stats.dom.style.display = 'none';
+                    document.getElementById('info').innerHTML = 'Press M to return to the game';
+                } else {
+                    stats.dom.style.display = 'block';
+                    document.getElementById('info').innerHTML = 'Click to start | WASD or Arrow keys to move | Mouse to look around | M for map view | F for FullScreen ';
+                }
+            })
+            .start();
         }
     });
 
     window.addEventListener('keyup', (e) => {
         keys[e.key.toLowerCase()] = false;
     });
-
-    const mapCamera = createMapCamera(mazeSize);
 
     function checkCollision(newPosition) {
         playerBoundingBox.setFromCenterAndSize(
@@ -257,7 +272,7 @@ function initGame() {
     document.body.appendChild(stats.dom);
 
     function animate() {
-        TWEEN.update(); // Add this at the start
+        TWEEN.update(); // Add this at the top
         stats.begin();
 
         endMarkerY += 0.05;
